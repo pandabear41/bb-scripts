@@ -1,4 +1,4 @@
-import { parseShortNumber } from './Libs/helpers.js'
+import { parseShortNumber } from './lib/variables.js`'
 /** @param {NS} ns **/
 export async function main(ns) {
     let parsed = parseShortNumber(ns.args[0]);
