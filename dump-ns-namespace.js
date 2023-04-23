@@ -1,4 +1,4 @@
-import { runCommand } from './libs/process.js'
+import { runCommand } from './lib/process.js'
 
 export function autocomplete(data, args) {
 	return [
