@@ -213,9 +213,84 @@ export async function main(ns) {
     await buildServerList(ns, false, allServers); // create the exhaustive server list
     await establishMultipliers(ns); // figure out the various bitnode and player multipliers
     maxTargets = options['initial-max-targets'];
+
+    // If we ascended less than 10 minutes ago, start with some study and/or XP cycles to quickly restore hack XP
+    const shouldKickstartHackXp = (playerHackSkill() < 500 && playerInfo.playtimeSinceLastAug < 600000);
+    studying = shouldKickstartHackXp ? true : false; // Flag will prevent focus-stealing scripts from running until we're done studying.
+
+    // Start helper scripts and run periodic scripts for the first time to e.g. buy tor and any hack tools available to us (we will continue studying briefly while this happens)
+    if (shouldKickstartHackXp) await kickstartHackXp(ns);
+
+    // Start the main targetting loop
+    await doTargetingLoop(ns);
 }
 
-
+/** @param {NS} ns
+ * Gain a hack XP early after a new Augmentation by studying a bit, then doing a bit of XP grinding */
+async function kickstartHackXp(ns) {
+    let startedStudying = false;
+    try {
+        if (4 in dictSourceFiles && options['initial-study-time'] > 0) {
+            // The safe/cheap thing to do is to study for free at the local university in our current town
+            // The most effective thing is to study Algorithms at ZB university in Aevum.
+            // Depending on our money, try to do the latter.
+            try {
+                const studyTime = options['initial-study-time'];
+                log(ns, `INFO: Studying for ${studyTime} seconds to kickstart hack XP and speed up initial cycle times. (set --initial-study-time 0 to disable this step.)`);
+                const money = ns.getServerMoneyAvailable("home")
+                const { CityName, LocationName, UniversityClassType } = ns.enums
+                if (money >= 200000) { // If we can afford to travel, we're probably far enough along that it's worthwhile going to Volhaven where ZB university is.
+                    log(ns, `INFO: Travelling to Volhaven for best study XP gain rate.`);
+                    await getNsDataThroughFile(ns, `ns.singularity.travelToCity(ns.args[0])`, '/Temp/travel-to-city.txt', [CityName.Volhaven]);
+                }
+                const playerInfo = await getPlayerInfo(ns); // Update player stats to be certain of our new location.
+                const university = playerInfo.city == CityName.Sector12 ? LocationName.Sector12RothmanUniversity :
+                    playerInfo.city == CityName.Aevum ? LocationName.AevumSummitUniversity :
+                        playerInfo.city == CityName.Volhaven ? LocationName.VolhavenZBInstituteOfTechnology : null;
+                if (!university)
+                    log(ns, `WARN: Cannot study, because you are in city ${playerInfo.city} which has no known university, and you cannot afford to travel to another city.`, false, 'warning');
+                else {
+                    const course = playerInfo.city == CityName.Sector12 ? UniversityClassType.computerScience : UniversityClassType.algorithms; // Assume if we are still in Sector-12 we are poor and should only take the free course
+                    log(ns, `INFO: Studying "${course}" at "${university}" because we are in city "${playerInfo.city}".`);
+                    startedStudying = await getNsDataThroughFile(ns, `ns.singularity.universityCourse(ns.args[0], ns.args[1], ns.args[2])`, '/Temp/study.txt', [university, course, false]);
+                    if (startedStudying)
+                        await ns.sleep(studyTime * 1000); // Wait for studies to affect Hack XP. This will often greatly reduce time-to-hack/grow/weaken, and avoid a slow first cycle
+                    else
+                        log(ns, `WARNING: Failed to study to kickstart hack XP: ns.singularity.universityCourse("${university}", "${course}", false) returned "false".`, false, 'warning');
+                }
+            } catch (err) { log(ns, `WARNING: Caught error while trying to study to kickstart hack XP: ${typeof err === 'string' ? err : err.message || JSON.stringify(err)}`, false, 'warning'); }
+        }
+        // Immediately attempt to root initially-accessible targets before attempting any XP cycles
+        for (const server of getAllServers().filter(s => !s.hasRoot() && s.canCrack()))
+            await doRoot(ns, server);
+        // Before starting normal hacking, fire a couple hack XP-focused cycle using a chunk of free RAM to further boost RAM
+        if (!xpOnly) {
+            let maxXpCycles = 10000; // Avoid an infinite loop if something goes wrong
+            const maxXpTime = options['initial-hack-xp-time'];
+            const start = Date.now();
+            const xpTarget = getBestXPFarmTarget();
+            const minCycleTime = xpTarget.timeToWeaken();
+            if (minCycleTime > maxXpTime * 1000)
+                return log(ns, `INFO: Skipping XP cycle because the best target (${xpTarget.name}) time to weaken (${formatDuration(minCycleTime)})` +
+                    ` is greater than the configured --initial-hack-xp-time of ${maxXpTime} seconds.`);
+            log(ns, `INFO: Running Hack XP-focused cycles for ${maxXpTime} seconds to further boost hack XP and speed up main hack cycle times. (set --initial-hack-xp-time 0 to disable this step.)`);
+            while (maxXpCycles-- > 0 && Date.now() - start < maxXpTime * 1000) {
+                let cycleTime = await farmHackXp(ns, 1, verbose, 1);
+                if (cycleTime)
+                    await ns.sleep(cycleTime);
+                else
+                    return log(ns, 'WARNING: Failed to schedule an XP cycle', false, 'warning');
+                log(ns, `INFO: Hacked ${xpTarget.name} for ${cycleTime.toFixed(1)}ms, (${Date.now() - start}ms total) of ${maxXpTime * 1000}ms`);
+            }
+        }
+    } catch {
+        log(ns, 'WARNING: Encountered an error while trying to kickstart hack XP (low RAM issues perhaps?)', false, 'warning');
+    } finally {
+        // Ensure we stop studying (in case no other running scripts end up stealing focus, so we don't keep studying forever)
+        if (startedStudying) await getNsDataThroughFile(ns, `ns.singularity.stopAction()`, '/Temp/stop-action.txt');
+        studying = false; // This will allow work-for-faction to launch
+    }
+}
 
 
 
@@ -233,3 +308,88 @@ async function getPlayerInfo(ns) {
 function playerHackSkill() { return _cachedPlayerInfo.skills.hacking; }
 
 function getPlayerHackingGrowMulti() { return _cachedPlayerInfo.mults.hacking_grow; };
+
+
+// SERVER HELPERS
+/** @param {Server} server **/
+function addServer(ns, server, verbose) {
+    if (verbose) log(ns, `Adding a new server to all lists: ${server}`);
+    allHostNames.push(server.name);
+    _allServers.push(server);
+    resetServerSortCache(); // Reset the cached sorted lists of objects
+}
+
+function removeServerByName(ns, deletedHostName) {
+    // Remove from the list of server names
+    let findIndex = allHostNames.indexOf(deletedHostName)
+    if (findIndex === -1)
+        log(ns, `ERROR: Failed to find server with the name "${deletedHostName}" in the allHostNames list.`, true, 'error');
+    else
+        allHostNames.splice(findIndex, 1);
+    // Remove from the list of server objects
+    const arrAllServers = getAllServers();
+    findIndex = arrAllServers.findIndex(s => s.name === deletedHostName);
+    if (findIndex === -1)
+        log(ns, `ERROR: Failed to find server by name "${deletedHostName}".`, true, 'error');
+    else {
+        arrAllServers.splice(findIndex, 1);
+        log(ns, `"${deletedHostName}" was found at index ${findIndex} of servers and removed leaving ${arrAllServers.length} items.`);
+    }
+    resetServerSortCache(); // Reset the cached sorted lists of objects
+}
+
+// Helper to construct our server lists from a list of all host names
+async function buildServerList(ns, verbose = false, allServers = undefined) {
+    // Get list of servers (i.e. all servers on first scan, or newly purchased servers on subsequent scans) that are not currently flagged for deletion
+    allServers ??= await getNsDataThroughFile(ns, 'scanAllServers(ns)', '/Temp/scanAllServers.txt');
+    // Indication that a server has been flagged for deletion (by the host manager).
+    const flaggedForDeletion = await getNsDataThroughFile(ns, `ns.args.slice(1).map(s => ns.fileExists(ns.args[0], s))`,
+        '/Temp/servers-have-file.txt', [getFilePath("/Flags/deleting.txt"), ...allServers]);
+    let scanResult = allServers.filter((hostName, i) => hostName == "home" || !flaggedForDeletion[i]);
+    // Ignore hacknet node servers if we are not supposed to run scripts on them (reduces their hash rate when we do)
+    if (!useHacknetNodes)
+        scanResult = scanResult.filter(hostName => !hostName.startsWith('hacknet-server-') && !hostName.startsWith('hacknet-node-'))
+    // Remove all servers we currently have added that are no longer being returned by the above query
+    for (const hostName of allHostNames.filter(hostName => !scanResult.includes(hostName)))
+        removeServerByName(ns, hostName);
+    // Add any servers that are new
+    for (const hostName of scanResult.filter(hostName => !allHostNames.includes(hostName)))
+        addServer(ns, new Server(ns, hostName, verbose));
+}
+
+/** @returns {Server[]} A list of all server objects */
+function getAllServers() { return _allServers; }
+
+/** @returns {Server} A list of all server objects */
+function getServerByName(hostname) { return getAllServers().find(s => s.name == hostname); }
+
+// Note: We maintain copies of the list of servers, in different sort orders, to reduce re-sorting time on each iteration
+let _serverListByFreeRam = (/**@returns{Server[]}*/() => undefined)();
+let _serverListByMaxRam = (/**@returns{Server[]}*/() => undefined)();
+let _serverListByTargetOrder = (/**@returns{Server[]}*/() => undefined)();
+const resetServerSortCache = () => _serverListByFreeRam = _serverListByMaxRam = _serverListByTargetOrder = undefined;
+
+/** @param {Server[]} toSort
+ * @param {(a: Server, b: Server) => number} compareFn
+ * @returns {Server[]} List sorted by the specified compare function */
+function _sortServersAndReturn(toSort, compareFn) {
+    toSort.sort(compareFn);
+    return toSort;
+}
+
+/** @returns {Server[]} Sorted by most free (available) ram to least */
+function getAllServersByFreeRam() {
+    return _sortServersAndReturn(_serverListByFreeRam ??= getAllServers().slice(), function (a, b) {
+        var ramDiff = b.ramAvailable() - a.ramAvailable();
+        return ramDiff != 0.0 ? ramDiff : a.name.localeCompare(b.name); // Break ties by sorting by name
+    });
+}
+
+/** @returns {Server[]} Sorted by most max ram to least */
+function getAllServersByMaxRam() {
+    return _sortServersAndReturn(_serverListByMaxRam ??= getAllServers().slice(), function (a, b) {
+        var ramDiff = b.totalRam() - a.totalRam();
+        return ramDiff != 0.0 ? ramDiff : a.name.localeCompare(b.name); // Break ties by sorting by name
+    });
+}
+
