@@ -7,7 +7,7 @@ const argsSchema = [
     ['new-file', []], // If a repository listing fails, only files returned by ns.ls() will be downloaded. You can add additional files to seek out here.
     ['subfolder', ''], // Can be set to download to a sub-folder that is not part of the remote repository structure
     ['extension', ['.js', '.ns', '.txt', '.script']], // Files to download by extension
-    ['omit-folder', ['/Temp/','/old/']], // Folders to omit
+    ['omit-folder', ['/Temp/','/old/', '//old/']], // Folders to omit
 ];
 
 export function autocomplete(data, args) {
@@ -40,7 +40,7 @@ export async function main(ns) {
     }
     ns.tprint(`INFO: Pull complete.`);
     // Remove any temp files / scripts from the prior version
-    ns.run(`${options.subfolder}/cleanup.js`);
+    //ns.run(`${options.subfolder}/cleanup.js`);
 }
 
 /** Joins all arguments as components in a path, e.g. pathJoin("foo", "bar", "/baz") = "foo/bar/baz" **/

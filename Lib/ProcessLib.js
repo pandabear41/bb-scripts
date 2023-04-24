@@ -1,6 +1,6 @@
-import { disableLogs, log, asError } from "./LogLib";
-import { getFilePath } from "./FileLib";
-import { hashCode } from "./StringLib";
+import { disableLogs, log, asError } from "/Lib/LogLib.js";
+import { getFilePath } from "/Lib/FileLib.js";
+import { hashCode } from "/Lib/StringLib.js";
 
 /** @param {NS} ns 
  * Returns a helpful error message if we forgot to pass the ns instance to a function */

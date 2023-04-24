@@ -1,4 +1,4 @@
-import { checkNsInstance } from './ProcessLib'
+import { checkNsInstance } from '/Lib/ProcessLib.js'
 
 /** @param {NS} ns **/
 export function disableLogs(ns, listOfLogs) { ['disableLog'].concat(...listOfLogs).forEach(log => checkNsInstance(ns, '"disableLogs"').disableLog(log)); }

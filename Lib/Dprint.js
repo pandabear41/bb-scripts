@@ -1,4 +1,4 @@
-import { DEBUG } from "/Config/Debug";
+import { DEBUG } from "/Config/Debug.js";
 
 export function dprint(ns, string) {
     if (DEBUG) {

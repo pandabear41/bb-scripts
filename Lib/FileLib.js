@@ -1,5 +1,5 @@
-import { getNsDataThroughFile } from './ProcessLib.js'
-import { MAIN_SERVER } from '/Config/Config';
+import { getNsDataThroughFile } from '/Lib/ProcessLib.js'
+import { MAIN_SERVER } from '/Config/Config.js';
 
 /** Joins all arguments as components in a path, e.g. pathJoin("foo", "bar", "/baz") = "foo/bar/baz" **/
 export function pathJoin(...args) {
