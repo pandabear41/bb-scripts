@@ -1,0 +1,18 @@
+{
+    "include": [
+      "*.ts",
+    ],
+    "compilerOptions": {
+      "noImplicitReturns": true,
+      "noImplicitThis": true,
+      "module": "ES2015",
+      "target": "ES2017",
+      "rootDir": "",
+      "outDir": "",
+      "sourceMap": false,
+      "strict": true,
+      "types": ["jsplumb"],
+      "typeRoots": ["node_modules/@types"],
+      "forceConsistentCasingInFileNames": false,
+    }
+}
