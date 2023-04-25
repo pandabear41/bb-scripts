@@ -1,7 +1,48 @@
-import { disableLogs, log } from './logs.js'
-import { hashCode } from './variables.js'
-import { getFilePath } from './filesystem.js';
+import { MANAGING_SERVER } from '/Config/Config.js';
+import { hashCode } from "/Lib/StringLib.js";
 
+
+// == FILE  ===
+/** Joins all arguments as components in a path, e.g. pathJoin("foo", "bar", "/baz") = "foo/bar/baz" **/
+export function pathJoin(...args) {
+    return args.filter(s => !!s).join('/').replace(/\/\/+/g, '/');
+}
+
+/** Gets the path for the given local file, taking into account optional subfolder relocation via git-pull.js **/
+export function getFilePath(file) {
+    const subfolder = '';  // git-pull.js optionally modifies this when downloading
+    return pathJoin(subfolder, file);
+}
+
+/** Helper to check if a file exists.
+ * A helper is used so that we have the option of exploring alternative implementations that cost less/no RAM.
+ * @param {NS} ns */
+export function doesFileExist(ns, filename, hostname = undefined) {
+    // Fast (and free) - for local files, try to read the file and ensure it's not empty
+    if ((hostname === undefined || hostname === MANAGING_SERVER) && !filename.endsWith('.exe'))
+        return ns.read(filename) != '';
+    return ns.fileExists(filename, hostname);
+}
+
+/** Helper to check which of a set of files exist on a remote server in a single batch ram-dodging request
+ * @param {NS} ns
+ * @param {string[]} filenames
+ * @returns {Promise<boolean[]>} */
+export async function filesExist(ns, filenames, hostname = undefined) {
+    return await getNsDataThroughFile(ns, `ns.args.slice(1).map(f => ns.fileExists(f, ns.args[0]))`,
+        '/Temp/files-exist.txt', [hostname ?? MANAGING_SERVER, ...filenames])
+}
+
+export async function copyFile(ns, fileList, host) {
+    for (let j = 0; j < fileList.length; j++) {
+        const script = fileList[j]
+        ns.fileExists(script, host) && ns.rm(script, host)
+        await ns.scp(script, "home", host);
+    }
+}
+
+
+// === Processes ===
 
 /** @param {NS} ns 
  * Returns a helpful error message if we forgot to pass the ns instance to a function */
@@ -10,9 +51,11 @@ export function checkNsInstance(ns, fnName = "this function") {
     return ns;
 }
 
+
 /** @param {NS} ns
  *  Use where a function is required to run a script and you have already referenced ns.run in your script **/
 export function getFnRunViaNsRun(ns) { return checkNsInstance(ns, '"getFnRunViaNsRun"').run; }
+
 
 /** @param {NS} ns
  *  Use where a function is required to run a script and you have already referenced ns.exec in your script **/
@@ -20,6 +63,7 @@ export function getFnRunViaNsExec(ns, host = "home") {
     checkNsInstance(ns, '"getFnRunViaNsExec"');
     return function (scriptPath, ...args) { return ns.exec(scriptPath, host, ...args); }
 }
+
 // VARIATIONS ON NS.ISRUNNING
 
 /** @param {NS} ns
@@ -88,7 +132,7 @@ export async function getNsDataThroughFile_Custom(ns, fnRun, command, fName, arg
             (lastRead == undefined ? '\nThe developer has no idea how this could have happened. Please post a screenshot of this error on discord.' :
                 lastRead == initialContents ? `\nThe script that ran this will likely recover and try again later once you have more free ram.` :
                     lastRead == "" ? `\nThe file appears to have been deleted before a result could be retrieved. Perhaps there is a conflicting script.` :
-                        `\nThe script was likely passed invalid arguments. Please post a screenshot of this error on discord.`),
+                        `\nThe script was likely passed invalid arguments.`),
         maxRetries, retryDelayMs, undefined, verbose, verbose);
     if (verbose) log(ns, `Read the following data for command ${command}:\n${fileData}`);
     return JSON.parse(fileData); // Deserialize it back into an object/array and return
@@ -123,7 +167,7 @@ export async function runCommand_Custom(ns, fnRun, command, fileName, args = [],
     if (!verbose) disableLogs(ns, ['sleep']);
     // Auto-import any helpers that the temp script attempts to use
     const required = getExports(ns).filter(e => command.includes(`${e}(`));
-    let script = (required.length > 0 ? `import { ${required.join(", ")} } from 'shared-helpers.js'\n` : '') +
+    let script = (required.length > 0 ? `import { ${required.join(", ")} } from '/Lib/Helpers.js'\n` : '') +
         `export async function main(ns) { ${command} }`;
     fileName = fileName || `/Temp/${hashCode(command)}-command.js`;
     if (verbose)
@@ -243,7 +287,7 @@ const _cachedExports = [];
  * @returns {string[]} The set of all funciton names exported by this file. */
 function getExports(ns) {
     if (_cachedExports.length > 0) return _cachedExports;
-    const scriptHelpersRows = ns.read(getFilePath('shared-helpers.js')).split("\n");
+    const scriptHelpersRows = ns.read(getFilePath('/Lib/Helpers.js')).split("\n");
     for (const row of scriptHelpersRows) {
         if (!row.startsWith("export")) continue;
         const funcNameStart = row.indexOf("function") + "function".length + 1;
@@ -251,4 +295,45 @@ function getExports(ns) {
         _cachedExports.push(row.substring(funcNameStart, funcNameEnd));
     }
     return _cachedExports;
+}
+
+// === Logs ===
+/** @param {NS} ns **/
+export function disableLogs(ns, listOfLogs) { ['disableLog'].concat(...listOfLogs).forEach(log => checkNsInstance(ns, '"disableLogs"').disableLog(log)); }
+
+/** Helper to log a message, and optionally also tprint it and toast it
+ * @param {NS} ns - The nestcript instance passed to your script's main entry point */
+export function log(ns, message = "", alsoPrintToTerminal = false, toastStyle = "", maxToastLength = Number.MAX_SAFE_INTEGER) {
+    checkNsInstance(ns, '"log"');
+    ns.print(message);
+    if (toastStyle) ns.toast(message.length <= maxToastLength ? message : message.substring(0, maxToastLength - 3) + "...", toastStyle);
+    if (alsoPrintToTerminal) {
+        ns.tprint(message);
+        // TODO: Find a way write things logged to the terminal to a "permanent" terminal log file, preferably without this becoming an async function.
+        //       Perhaps we copy logs to a port so that a separate script can optionally pop and append them to a file.
+        //ns.write("log.terminal.txt", message + '\n', 'a'); // Note: we should get away with not awaiting this promise since it's not a script file
+    }
+    return message;
+}
+
+/** If the argument is an Error instance, returns it as is, otherwise, returns a new Error instance. */
+export function asError(error) {
+    return error instanceof Error ? error : new Error(typeof error === 'string' ? error : JSON.stringify(error));
+}
+
+/** Helper to get a list of all hostnames on the network
+ * @param {NS} ns - The nestcript instance passed to your script's main entry point */
+export function scanAllServers(ns) {
+    checkNsInstance(ns, '"scanAllServers"');
+    let discoveredHosts = []; // Hosts (a.k.a. servers) we have scanned
+    let hostsToScan = ["home"]; // Hosts we know about, but have no yet scanned
+    let infiniteLoopProtection = 9999; // In case you mess with this code, this should save you from getting stuck
+    while (hostsToScan.length > 0 && infiniteLoopProtection-- > 0) { // Loop until the list of hosts to scan is empty
+        let hostName = hostsToScan.pop(); // Get the next host to be scanned
+        discoveredHosts.push(hostName); // Mark this host as "scanned"
+        for (const connectedHost of ns.scan(hostName)) // "scan" (list all hosts connected to this one)
+            if (!discoveredHosts.includes(connectedHost) && !hostsToScan.includes(connectedHost)) // If we haven't found this host
+                hostsToScan.push(connectedHost); // Add it to the queue of hosts to be scanned
+    }
+    return discoveredHosts; // The list of scanned hosts should now be the set of all hosts in the game!
 }

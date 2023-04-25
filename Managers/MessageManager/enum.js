@@ -1,60 +1,53 @@
-
-
-
-export const ChannelName = {
-    messageManager: "messageManager",
-    // threadManager: "threadManager",
-    // serverManager: "serverManager",
-    // hackManager: "hackManager",
-    // targetManager: "targetManager",
-    // hackConductor: "hackConductor",
-    // hackScript: "hackScript",
-    // consoleLink: "consoleLink",
-    // bootScript: "bootScript",
-    // shareScript: "shareScript"
-}
-
-export const Action = {
-    // // Thread Manager Actions
-    // threads: "threads",  // Threads list
-    // threadsAvailable: "threadsAvailable",  // The number of available threads
-    // getThreads: "getThreads",  // Get some threads
-    // getThreadsAvailable: "getThreadsAvailable",  // Get the total number of threads
-    // freeThreads: "freeThreads",  // Free the threads
-    // updateHost: "updateHost",  // Update a host
-    // consoleThreadsUse: "consoleThreadsUse",  // Console command to print the current threads use
-    // lockHost: "lockHost",  // To indicate a host lock request (preparing for update)
-    // hostLocked: "hostLocked",  // To indicate that a host is locked (no threads are in use)
-    // getTotalThreads: "getTotalThreads", // To get the total amount of threads available
-    // totalThreads: "totalThreads", // Total amount of threads
-    // useShareSwitch: "useShareSwitch",
-
-    // // Hack Manager Actions
-    // hackDone: "hackDone",
-    // hackReady: "hackRead",
-    // hackScriptDone: "hackScriptDone",
-    // weakenScriptDone: "weakenScriptDone",
-    // growScriptDone: "growScriptDone",
-    // hackPaused: "hackPaused",
-    // hackResume: "hackResume",
-    // printHacks: "printHacks",
-    // printRunningHacks: "printRunningHacks",
-    // switchHackMode: "switchHackMode",
-
-    // // Target Manager Actions
-    // addHost: "addHost",
-    // getHostList: "getHostList",
-
-
-    // // General Actions
-    // stop: "stop",
-    // pause: "pause",
-    // kill: "kill",
-    // resume: "resume",
-    // messageRequest: "messageRequest",
-    // noMessage: "noMessage",
-
+export var ChannelName;
+(function (ChannelName) {
+    ChannelName["messageManager"] = "messageManager";
+    ChannelName["threadManager"] = "threadManager";
+    ChannelName["serverManager"] = "serverManager";
+    ChannelName["hackManager"] = "hackManager";
+    ChannelName["targetManager"] = "targetManager";
+    ChannelName["hackConductor"] = "hackConductor";
+    ChannelName["hackScript"] = "hackScript";
+    ChannelName["consoleLink"] = "consoleLink";
+    ChannelName["bootScript"] = "bootScript";
+    ChannelName["shareScript"] = "shareScript";
+})(ChannelName || (ChannelName = {}));
+export var Action;
+(function (Action) {
+    // Thread Manager Actions
+    Action["threads"] = "threads";
+    Action["threadsAvailable"] = "threadsAvailable";
+    Action["getThreads"] = "getThreads";
+    Action["getThreadsAvailable"] = "getThreadsAvailable";
+    Action["freeThreads"] = "freeThreads";
+    Action["updateHost"] = "updateHost";
+    Action["consoleThreadsUse"] = "consoleThreadsUse";
+    Action["lockHost"] = "lockHost";
+    Action["hostLocked"] = "hostLocked";
+    Action["getTotalThreads"] = "getTotalThreads";
+    Action["totalThreads"] = "totalThreads";
+    Action["useShareSwitch"] = "useShareSwitch";
+    // Hack Manager Actions
+    Action["hackDone"] = "hackDone";
+    Action["hackReady"] = "hackRead";
+    Action["hackScriptDone"] = "hackScriptDone";
+    Action["weakenScriptDone"] = "weakenScriptDone";
+    Action["growScriptDone"] = "growScriptDone";
+    Action["hackPaused"] = "hackPaused";
+    Action["hackResume"] = "hackResume";
+    Action["printHacks"] = "printHacks";
+    Action["printRunningHacks"] = "printRunningHacks";
+    Action["switchHackMode"] = "switchHackMode";
+    // Target Manager Actions
+    Action["addHost"] = "addHost";
+    Action["getHostList"] = "getHostList";
+    // General Actions
+    Action["stop"] = "stop";
+    Action["pause"] = "pause";
+    Action["kill"] = "kill";
+    Action["resume"] = "resume";
+    Action["messageRequest"] = "messageRequest";
+    Action["noMessage"] = "noMessage";
     // Message Manager Actions
-    dumpQueue: "dumpQueue",
-    clearMyMessage: "clearMyMessage",
-}
+    Action["dumpQueue"] = "dumpQueue";
+    Action["clearMyMessage"] = "clearMyMessage";
+})(Action || (Action = {}));

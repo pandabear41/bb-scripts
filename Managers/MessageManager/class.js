@@ -1,4 +1,4 @@
-import { Action, ChannelName } from "./enum";
+import { Action, ChannelName } from "/Managers/MessageManager/enum.js";
 
 export const NULL_PORT_DATA = "NULL PORT DATA";
 
