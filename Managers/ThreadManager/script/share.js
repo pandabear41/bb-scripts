@@ -1,7 +1,7 @@
 /** @param {NS} ns **/
 import { MessageHandler } from "/Managers/MessageManager/class.js";
 import { Action, ChannelName } from "/Managers/MessageManager/enum.js";
-import { dprint } from "/Managers/Common/Dprint.js";
+import { dprint } from "/Managers/Lib/Dprint.js";
 export async function main(ns) {
     ns.disableLog("sleep");
     const mySelf = ChannelName.shareScript;

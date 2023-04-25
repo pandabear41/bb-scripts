@@ -1,10 +1,10 @@
-import { MessageHandler, Payload } from "/Orchestrator/MessageManager/class";
-import { Action, ChannelName } from "/Orchestrator/MessageManager/enum";
-import { HACKING_SCRIPTS, TIMEOUT_THRESHOLD } from "/Orchestrator/Config/Config";
-import { Hack } from "/Orchestrator/HackManager/hack";
-import { executeScript } from "/Orchestrator/Common/GenericFunctions";
-import { freeThreads, getThreads } from "/Orchestrator/ThreadManager/common";
-import { dprint } from "/Orchestrator/Common/Dprint";
+import { MessageHandler, Payload } from "/Managers/MessageManager/class";
+import { Action, ChannelName } from "/Managers/MessageManager/enum";
+import { HACKING_SCRIPTS, TIMEOUT_THRESHOLD } from "/Managers/Config/Config";
+import { Hack } from "/Managers/HackManager/hack";
+import { executeScript } from "/Managers/Common/GenericFunctions";
+import { freeThreads, getThreads } from "/Managers/ThreadManager/common";
+import { dprint } from "/Managers/Common/Dprint";
 export async function main(ns) {
     ns.disableLog('sleep');
     ns.disableLog('exec');

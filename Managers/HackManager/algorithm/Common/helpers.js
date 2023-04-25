@@ -1,4 +1,4 @@
-import { USE_LOGISTIC_PROBABILITY } from "/Orchestrator/Config/Config";
+import { USE_LOGISTIC_PROBABILITY } from "/Managers/Config/Config";
 export function helpers(availableThreads, currentSecurity, minSecurity, growThreads, weakenThreads) {
     if ((growThreads + weakenThreads) <= availableThreads) {
         return { weakenThreads: weakenThreads, growThreads: growThreads };
